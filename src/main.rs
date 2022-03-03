@@ -3,7 +3,7 @@ use csv::Writer;
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
-use std::fmt::write;
+//use std::fmt::write;
 use std::io;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -36,12 +36,6 @@ impl Item {
             quantity,
         }
     }
-    fn item_to_string(&self) -> String {
-        format!(
-            "{},{},{},{}\n",
-            self.id, self.name, self.price, self.quantity
-        )
-    }
 }
 
 impl ShoppingCart {
@@ -55,19 +49,10 @@ impl ShoppingCart {
         self.items.push(String::from(item))
     }
     fn remove_item(&mut self, item: &str) {
-        if (self.items.iter().any(|x| x == item)) {
+        if self.items.iter().any(|x| x == item) {
             let index = self.items.iter().position(|x| x == item).unwrap();
             self.items.remove(index);
         }
-    }
-    fn print_cart(&self) -> String {
-        let mut result = String::new();
-        for item in self.items.iter() {
-            result += item;
-            result += ", ";
-        }
-        result += "\n";
-        result
     }
 }
 
@@ -84,20 +69,14 @@ impl Shop {
         self.carts.push(cart);
         id
     }
-    fn remove_cart(&mut self, index: usize) {
-        self.carts.remove(index);
-    }
 
-    fn get_cart(&self, index: usize) -> Option<&ShoppingCart> {
-        self.carts.get(index)
-    }
     fn save_store(&self, file_name: &str) -> Result<(), Box<dyn Error>> {
         let mut wtr = Writer::from_path(file_name)?;
 
         for item in self.items.iter() {
             wtr.serialize(item)?;
         }
-        wtr.flush();
+        wtr.flush()?;
         Ok(())
     }
     fn load_store(&mut self, file_name: &str) -> Result<(), Box<dyn Error>> {
@@ -108,6 +87,7 @@ impl Shop {
         }
         Ok(())
     }
+
     fn add_item_to_cart(&mut self, cart_id: &str, product_id: &str) -> String {
         let cart = self
             .carts
@@ -131,7 +111,7 @@ impl Shop {
 
     fn remove_item_from_cart(&mut self, cart_id: &str, product_id: &str) {
         if self.carts.iter().any(|x| x.id == cart_id) {
-            let mut cart = self.carts.iter_mut().find(|x| x.id == cart_id).unwrap();
+            let cart = self.carts.iter_mut().find(|x| x.id == cart_id).unwrap();
             if self.items.iter().any(|x| x.id == product_id) {
                 let mut item = self.items.iter_mut().find(|x| x.id == product_id).unwrap();
                 cart.remove_item(&product_id);
@@ -139,14 +119,37 @@ impl Shop {
             }
         }
     }
-    fn checkout(&mut self, cart_id: &str) -> Option<String> {
+    fn checkout(&self, cart_id: &str) -> Option<Vec<&Item>> {
         if self.carts.iter().any(|x| x.id == cart_id) {
-            let mut cart = self.carts.iter_mut().find(|x| x.id == cart_id).unwrap();
+            let cart = self.carts.iter().find(|x| x.id == cart_id).unwrap();
+            let mut items: Vec<&Item> = vec![];
+            for item_id in cart.items.iter() {
+                let item = self
+                    .items
+                    .iter()
+                    .find(|x| x.id == item_id.to_string())
+                    .unwrap();
+                items.push(item);
+            }
             //cart.items=vec![];
-            Some(cart.print_cart())
+            Some(items)
         } else {
             None
         }
+    }
+    fn get_receipt(&self, cart_id: &str) -> Option<u64> {
+        let cart = self.carts.iter().find(|x| x.id == cart_id)?;
+        let mut sum: u64 = 0;
+        for item_id in cart.items.iter() {
+            let item = self.items.iter().find(|x| x.id == item_id.to_string());
+            if let Some(i) = item {
+                sum += i.price;
+            }
+        }
+        Some(sum)
+    }
+    fn get_total(&self) -> Option<u64> {
+        self.carts.iter().map(|x| self.get_receipt(&x.id)).sum()
     }
     fn close(&self, file_name: &str) -> Result<(), Box<dyn Error>> {
         self.save_store(file_name)
@@ -175,12 +178,15 @@ impl Shop {
         let product_id = self.get_item_id(&product_name).unwrap();
         self.remove_item_from_cart(&cart_id, &product_id);
     }
+    fn get_items(&self) -> &Vec<Item> {
+        &self.items
+    }
 }
 fn write_items() -> Result<(), Box<dyn Error>> {
     let item1 = Item::new("bread", 70, 60);
     let item2 = Item::new("milk", 90, 50);
     let item3 = Item::new("flour", 120, 40);
-    let item4 = Item::new("bread", 120, 90);
+    let item4 = Item::new("sugar", 120, 90);
 
     let mut wtr = Writer::from_path("items.csv")?;
     wtr.serialize(item1)?;
@@ -208,11 +214,11 @@ fn main() {
     if let Err(e) = shop.load_store("items.csv") {
         eprintln!("{}", e);
     }
-    println!("{:#?}", shop);
+    //println!("{:#?}", shop);
 
     let mut buffer = String::new();
-    while buffer.to_lowercase().ne(&"g") {
-        println!("Enter which command you would like to execute: \nA)Create new shopping cart\nB)Add item to cart\nC)Remove item from cart\nD)Checkout\nE)Close\nF)Show number of carts\nG)Exit\n");
+    while buffer.to_lowercase().ne(&"j") {
+        println!("Enter which command you would like to execute: \nA)Create new shopping cart\nB)Add item to cart\nC)Remove item from cart\nD)Checkout\nE)Close\nF)Show number of carts\nG)Show items in shop\nH)Show your receipt\nI)Total\nJ)Exit\n");
         buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
 
@@ -228,20 +234,35 @@ fn main() {
             "c" => shop.remove_item(),
             "d" => {
                 let cart_id = enter_field("Enter your cart id:\n");
-                println!("Your cart: {}", shop.checkout(&cart_id).unwrap());
+                println!("Your cart: {:#?}", shop.checkout(&cart_id).unwrap());
             }
             "e" => {
                 shop.close("items.csv").expect("Failed to close");
             }
             "f" => {
-                println!("{}", shop.show_carts_num())
+                println!("Total number of carts:{}\n", shop.show_carts_num())
             }
             "g" => {
-                println!("exiting\n");
+                println!("Shop items:\n {:#?}", shop.get_items());
+            }
+            "h" => {
+                let cart_id = enter_field("Enter your cart id:\n");
+                let receipt = shop.get_receipt(&cart_id);
+                if let Some(r) = receipt {
+                    println!("Your receipt: {}", r);
+                }
+            }
+            "i" => {
+                if let Some(r) = shop.get_total() {
+                    println!("Total:{}", r)
+                }
+            }
+            "j" => {
+                println!("Exiting\n");
             }
 
             _ => {
-                println!("command not recognized\n");
+                println!("Command not recognized\n");
             }
         }
     }
