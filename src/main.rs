@@ -150,25 +150,21 @@ impl Shop {
     }
 
     fn checkout(&self, cart_id: &str) -> Option<Vec<(String, String)>> {
-        if self.carts.iter().any(|x| x.id == cart_id) {
-            let cart = self.carts.iter().find(|x| x.id == cart_id).unwrap();
-            let mut items: Vec<(String, String)> = vec![];
-            for cart_item in cart.items.iter() {
-                let item = self
-                    .items
-                    .iter()
-                    .find(|x| x.id == cart_item.item_id.to_string())
-                    .unwrap();
-                items.push((
-                    format!("Item name: {}", item.name),
-                    format!("Quantity: {}", cart_item.quantity),
-                ));
-            }
-
-            Some(items)
-        } else {
-            None
+        let cart = self.carts.iter().find(|x| x.id == cart_id)?;
+        let mut items: Vec<(String, String)> = vec![];
+        for cart_item in cart.items.iter() {
+            let item = self
+                .items
+                .iter()
+                .find(|x| x.id == cart_item.item_id.to_string())
+                .unwrap();
+            items.push((
+                format!("Item name: {}", item.name),
+                format!("Quantity: {}", cart_item.quantity),
+            ));
         }
+
+        Some(items)
     }
     fn get_receipt(&self, cart_id: &str) -> Option<u64> {
         let cart = self.carts.iter().find(|x| x.id == cart_id)?;
@@ -192,12 +188,8 @@ impl Shop {
         self.save_store(file_name)
     }
     fn get_item_id(&self, name: &str) -> Option<String> {
-        if self.items.iter().any(|x| x.name == name) {
-            let item = self.items.iter().find(|x| x.name == name).unwrap();
-            Some(item.id.clone())
-        } else {
-            None
-        }
+        let item = self.items.iter().find(|x| x.name == name)?;
+        Some(item.id.clone())
     }
     fn show_carts_num(&self) -> usize {
         self.carts.len()
@@ -207,8 +199,11 @@ impl Shop {
         let product_name = enter_field("Enter product name:\n");
         let quantity_str = enter_field("Enter how much of this product you would like to order:\n");
         let quantity: u64 = quantity_str.parse().unwrap();
-        let product_id = self.get_item_id(&product_name).unwrap();
-        self.add_item_to_cart(&cart_id, &product_id, quantity)
+        let product_id = self.get_item_id(&product_name);
+        if let Some(i) = product_id {
+            self.add_item_to_cart(&cart_id, &i, quantity);
+        }
+        String::from("Item not found")
     }
     fn remove_item(&mut self) -> String {
         let cart_id = enter_field("Enter your cart id:\n");
@@ -216,7 +211,9 @@ impl Shop {
         let quantity_str =
             enter_field("Enter how much of this product you would like to remove from cart:\n");
         let quantity: u64 = quantity_str.parse().unwrap();
-        let product_id = self.get_item_id(&product_name).unwrap();
+        let product_id = self
+            .get_item_id(&product_name)
+            .unwrap_or(String::from("Not found"));
         if let Some(i) = self.remove_item_from_cart(&cart_id, &product_id, quantity) {
             i.to_string()
         } else {
@@ -234,6 +231,18 @@ impl Shop {
     }
     fn add_item_to_shop(&mut self, item: Item) {
         self.items.push(item);
+    }
+    fn add_quantity(&mut self, name: &str, quantity: u64) {
+        let item = self.items.iter_mut().find(|x| x.name == name);
+        if let Some(i) = item {
+            i.quantity += quantity;
+        }
+    }
+    fn delete_item(&mut self, name: &str) {
+        let index = self.items.iter().position(|x| x.name == name);
+        if let Some(i) = index {
+            self.items.remove(i);
+        }
     }
 }
 fn write_items() -> Result<(), Box<dyn Error>> {
@@ -271,8 +280,8 @@ fn main() {
     //println!("{:#?}", shop);
 
     let mut buffer = String::new();
-    while buffer.to_lowercase().ne(&"k") {
-        println!("\nEnter which command you would like to execute: \nA)Create new shopping cart\nB)Add item to cart\nC)Remove item from cart\nD)Checkout\nE)Close\nF)Show number of carts\nG)Show items in shop\nH)Show your receipt\nI)Total\nJ)Add item\nK)Exit\n");
+    while buffer.to_lowercase().ne(&"l") {
+        println!("\nEnter which command you would like to execute: \nA)Create new shopping cart\nB)Add item to cart\nC)Remove item from cart\nD)Checkout\nE)Close\nF)Show number of carts\nG)Show items in shop\nH)Show your receipt\nI)Total\nJ)Add item\nK)Add quantity to product\nL)Exit\n");
         buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
 
@@ -317,7 +326,11 @@ fn main() {
                 shop.add_new_item();
                 println!("Item added to shop");
             }
-            "k" => {
+            "k" => shop.add_quantity(
+                &enter_field("Enter name of product"),
+                enter_field("Enter quantity of product:").parse().unwrap(),
+            ),
+            "l" => {
                 println!("Exiting\n");
             }
 
