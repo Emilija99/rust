@@ -9,7 +9,14 @@ use crate::shop::{Shop, enter_field};
 }
 
 fn add_item_to_cart(shop:&mut Shop){
-    println!("{}", shop.add_item());
+    if let Some(i)=shop.add_item(){
+        println!("{}", i);
+
+    }
+    else{
+        println!("Item not found")
+    }
+  
 }
 
 fn remove_item_from_cart(shop:&mut Shop){
@@ -18,11 +25,15 @@ fn remove_item_from_cart(shop:&mut Shop){
 
 fn checkout(shop:&mut Shop){
     let cart_id = enter_field("Enter your cart id:\n");
-    println!("Your cart: {:#?}", shop.checkout(&cart_id).unwrap());
+    println!("Your cart: {:#?}", shop.checkout(&cart_id).unwrap_or(vec![]));
 }
 
 fn close(shop:&mut Shop){
-    shop.close("items.csv").expect("Failed to close");
+    if let Err(e)=shop.close("items.csv"){
+        println!("{}",e)
+
+    }
+    
 }
 
 fn total_number_of_carts(shop:&Shop){
@@ -42,10 +53,11 @@ fn show_cart_receipt(shop:&Shop){
 }
 
 fn show_total_in_carts(shop:&Shop){
-    if let Some(r) = shop.get_total() {
+    if let Some(r) = shop.get_total_in_carts() {
         println!("Total:{}", r);
     }
 }
+
 
 fn add_new_item_to_shop(shop:&mut Shop){
     shop.add_new_item();
@@ -54,7 +66,7 @@ fn add_new_item_to_shop(shop:&mut Shop){
 fn add_quantity_to_item(shop:&mut Shop){
     shop.add_quantity(
         &enter_field("Enter name of item"),
-        enter_field("Enter quantity of item:").parse().unwrap(),
+        enter_field("Enter quantity of item:").parse().unwrap_or(0),
     );
 }
 
@@ -62,6 +74,9 @@ fn delete_item_from_shop(shop:&mut Shop){
     shop.delete_item(&enter_field(
         "Enter name of product you would like to delete:",
     ));
+}
+fn show_total(shop:&Shop){
+    println!("Total: {}",shop.get_total());
 }
 
 fn exit(){
@@ -72,8 +87,8 @@ pub fn run_shop(){
     let mut shop = Shop::new();
     let mut buffer = String::new();
 
-    while buffer.to_lowercase().ne(&"m") {
-        println!("\nEnter which command you would like to execute: \nA)Create new shopping cart\nB)Add item to cart\nC)Remove item from cart\nD)Checkout\nE)Close\nF)Show number of carts\nG)Show items in shop\nH)Show your receipt\nI)Total\nJ)Add item\nK)Add quantity to product\nL)Delete item\nM)Exit\n");
+    while buffer.to_lowercase().ne(&"n") {
+        println!("\nEnter which command you would like to execute: \nA)Create new shopping cart\nB)Add item to cart\nC)Remove item from cart\nD)Checkout\nE)Close\nF)Show number of carts\nG)Show items in shop\nH)Show your receipt\nI)Show total in carts\nJ)Add item\nK)Add quantity to product\nL)Delete item\nM)Show total\nN)Exit\n");
         buffer = String::new();
         io::stdin().read_line(&mut buffer).unwrap();
 
@@ -117,7 +132,10 @@ pub fn run_shop(){
             "l" => {
                delete_item_from_shop(&mut shop)
             }
-            "m" => {
+            "m"=>{
+                show_total(&shop)
+            }
+            "n" => {
                exit()
             }
 

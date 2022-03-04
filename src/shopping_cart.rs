@@ -1,54 +1,46 @@
+use std::collections::HashMap;
+
 use nanoid::nanoid;
 
 #[derive(Debug)]
 pub struct CartItem {
-   pub item_id: String,
-   pub quantity: u64,
+    pub item_id: String,
+    pub quantity: u64,
 }
-
 
 #[derive(Debug)]
 pub struct ShoppingCart {
-   pub id: String,
+    pub id: String,
 
-   pub items: Vec<CartItem>,
+    pub items: HashMap<String, u64>,
 }
 
 impl ShoppingCart {
     pub fn new() -> ShoppingCart {
         ShoppingCart {
-            items: vec![],
+            items: HashMap::new(),
             id: nanoid!(),
         }
     }
     pub fn add_item(&mut self, item_id: &str, quantity: u64) {
-        let item = self.items.iter_mut().find(|x| x.item_id == item_id);
-        match item {
-            Some(i) => {
-                i.quantity += quantity;
-            }
-            None => self.items.push(CartItem {
-                item_id: String::from(item_id),
-                quantity,
-            }),
+       
+        if let Some(total_quantity)=self.items.get_mut(item_id){
+
+            *total_quantity += quantity;
+
+        }
+        else{
+            self.items.insert(String::from(item_id),quantity);
         }
     }
     pub fn remove_item(&mut self, item_id: &str, quantity: u64) -> Option<&str> {
-        let mut item = self.items.iter_mut().find(|x| x.item_id == item_id)?;
-        let new_quantity = item.quantity - quantity;
+        let total_quantity = self.items.get_mut(item_id)?;
+        let new_quantity = *total_quantity - quantity;
         if new_quantity > 0 {
-            item.quantity = new_quantity;
-            Some("Item successfully removed")
-        } else if new_quantity == 0 {
-            let index = self
-                .items
-                .iter()
-                .position(|x| x.item_id == item_id)
-                .unwrap();
-            self.items.remove(index);
-            Some("Item successfully removed")
+            *total_quantity = new_quantity;
         } else {
-            Some("You cant't remove more items than you already have")
+            self.items.remove_entry(item_id);
         }
+        Some("Item removed from cart")
     }
 }
