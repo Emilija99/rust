@@ -14,7 +14,7 @@ fn add_item_to_cart(shop:&mut Shop){
 
     }
     else{
-        println!("Item not found")
+        eprintln!("Item or cart not found")
     }
   
 }
@@ -29,10 +29,7 @@ fn checkout(shop:&mut Shop){
 }
 
 fn close(shop:&mut Shop){
-    if let Err(e)=shop.close("items.csv"){
-        println!("{}",e)
-
-    }
+   shop.close("items.csv").unwrap_or_else(|err| eprintln!("{}",err))
     
 }
 
@@ -85,6 +82,7 @@ fn exit(){
 
 pub fn run_shop(){
     let mut shop = Shop::new();
+    shop.load_store("items.csv").unwrap_or_else(|err| eprintln!("{}",err));
     let mut buffer = String::new();
 
     while buffer.to_lowercase().ne(&"n") {
@@ -140,7 +138,7 @@ pub fn run_shop(){
             }
 
             _ => {
-                println!("Command not recognized\n");
+                eprintln!("Command not recognized\n");
             }
         }
     }

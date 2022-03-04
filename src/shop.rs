@@ -88,11 +88,7 @@ impl Shop {
         }
        
         cart.items = HashMap::new();
-        if let Err(e)=self.save_store("items.csv"){
-
-            println!("{}",e)
-
-        }
+       self.save_store("items.csv").unwrap_or_else(|err| eprintln!("{}",err));
 
         Some(items)
     }
